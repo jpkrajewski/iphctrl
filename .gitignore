@@ -1,0 +1,17 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+shots/
+wda/build/
+wda/src/
+wda/*.ipa
+.env
+cmd/
+phones.csv
