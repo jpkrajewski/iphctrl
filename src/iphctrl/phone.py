@@ -8,8 +8,9 @@ Opening a Phone:
 1. connects to lockdownd through Apple Mobile Device Service (usbmux),
 2. mounts the Developer Disk Image if it is not mounted (iOS 17+: personalized,
    downloaded and signed on the fly),
-3. opens an iOS 17+ RSD tunnel in-process with pymobiledevice3's userspace
-   TCP stack - no admin rights, no tunneld service,
+3. uses the kernel tunnel from `pymobiledevice3 remote tunneld` (admin, started
+   by start.ps1) when it runs; otherwise opens an RSD tunnel in-process with
+   pymobiledevice3's userspace TCP stack (no admin, but drops more easily),
 4. opens the DVT (Instruments) channel used for screenshots and app launch.
 
 Only one Phone may be open per process (the userspace stack is a process-wide
@@ -19,7 +20,7 @@ singleton).
 from pathlib import Path
 from typing import Any, Self
 
-from pymobiledevice3.exceptions import AlreadyMountedError
+from pymobiledevice3.exceptions import AlreadyMountedError, TunneldConnectionError
 from pymobiledevice3.lockdown import create_using_usbmux
 from pymobiledevice3.remote.userspace_tunnel import UserspaceRsdTunnel
 from pymobiledevice3.services.dvt.instruments.dvt_provider import DvtProvider
@@ -27,6 +28,7 @@ from pymobiledevice3.services.dvt.instruments.process_control import ProcessCont
 from pymobiledevice3.services.dvt.instruments.screenshot import Screenshot
 from pymobiledevice3.services.installation_proxy import InstallationProxyService
 from pymobiledevice3.services.mobile_image_mounter import auto_mount
+from pymobiledevice3.tunneld.api import get_tunneld_device_by_udid
 from pymobiledevice3.usbmux import list_devices
 
 from iphctrl.apps import resolve_bundle
@@ -54,8 +56,10 @@ class Phone:
             await auto_mount(self.lockdown)
         except AlreadyMountedError:
             pass
-        self._tunnel = UserspaceRsdTunnel(serial=self.udid)
-        self._rsd = await self._tunnel.aopen()
+        self._rsd = await self._kernel_tunnel()
+        if self._rsd is None:
+            self._tunnel = UserspaceRsdTunnel(serial=self.udid)
+            self._rsd = await self._tunnel.aopen()
         self._dvt = DvtProvider(self._rsd)
         await self._dvt.__aenter__()
         return self
@@ -67,8 +71,20 @@ class Phone:
             await self._dvt.__aexit__(*exc)
         if self._tunnel:
             await self._tunnel.aclose()
+        elif self._rsd:
+            await self._rsd.close()
         if self.lockdown:
             await self.lockdown.close()
+
+    async def _kernel_tunnel(self) -> Any:
+        try:
+            return await get_tunneld_device_by_udid(self.lockdown.udid)
+        except TunneldConnectionError:  # tunneld not running
+            return None
+
+    @property
+    def tunnel(self) -> str:
+        return "userspace" if self._tunnel else "kernel"
 
     @property
     def dvt(self) -> DvtProvider:

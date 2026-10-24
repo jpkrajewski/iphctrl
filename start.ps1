@@ -39,6 +39,21 @@ uv sync -q
 if ($LASTEXITCODE -ne 0) { Fail 'uv sync failed' }
 Ok 'python env ready'
 
+# ---- 3b. Kernel tunnel (tunneld, admin) + USB power saving off: one-time UAC ----
+if (-not (Get-ScheduledTask -TaskName 'iphctrl tunneld' -ErrorAction SilentlyContinue)) {
+    Warn 'One-time admin setup (click Yes): kernel tunnel task + USB power saving off'
+    Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass',
+        '-File', "`"$PSScriptRoot\scripts\setup-admin.ps1`"", '-Root', "`"$PSScriptRoot`"",
+        '-User', "`"$env:USERDOMAIN\$env:USERNAME`""
+}
+if (-not (Get-NetTCPConnection -LocalPort 49151 -State Listen -ErrorAction SilentlyContinue)) {
+    Start-ScheduledTask -TaskName 'iphctrl tunneld' -ErrorAction SilentlyContinue
+    for ($i = 0; $i -lt 20 -and -not (Get-NetTCPConnection -LocalPort 49151 -State Listen -ErrorAction SilentlyContinue); $i++) { Start-Sleep 1 }
+}
+$tunneld = [bool](Get-NetTCPConnection -LocalPort 49151 -State Listen -ErrorAction SilentlyContinue)
+if ($tunneld) { Ok 'kernel tunnel service (tunneld) running' }
+else { Warn 'tunneld not running, using the userspace tunnel (see cmd\tunneld.log)' }
+
 # ---- 4. Phone on the cable --------------------------------------------------------
 $udid = $null
 for ($i = 0; $i -lt 30 -and -not $udid; $i++) {
@@ -51,6 +66,14 @@ for ($i = 0; $i -lt 30 -and -not $udid; $i++) {
 }
 if (-not $udid) { Fail 'Phone not visible. Unlock + replug + Trust. Still nothing: restart the phone (docs/LESSONS.md #1).' }
 Ok "phone $udid"
+if ($tunneld) {
+    $tun = $false
+    for ($i = 0; $i -lt 20 -and -not $tun; $i++) {
+        try { $tun = [bool]((Invoke-RestMethod http://127.0.0.1:49151/ -TimeoutSec 3).$udid) } catch { }
+        if (-not $tun) { Start-Sleep 1 }
+    }
+    if ($tun) { Ok 'kernel tunnel to phone up' } else { Warn 'tunneld has no tunnel to the phone yet, using userspace' }
+}
 
 $dev = (uv run pymobiledevice3 amfi developer-mode-status 2>$null | Out-String).Trim()
 if ($dev -notmatch 'true') { Fail 'Developer Mode is OFF: Settings > Privacy & Security > Developer Mode > ON, restart, confirm Turn On.' }

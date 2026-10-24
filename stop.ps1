@@ -2,8 +2,6 @@
 Set-Location $PSScriptRoot
 $env:VIRTUAL_ENV = $null
 if (Test-Path cmd\serve.pid) {
-    uv run python -m iphctrl.send quit | Out-Null
-    Start-Sleep 2
     $old = Get-Content cmd\serve.pid -ErrorAction SilentlyContinue
     if ($old) { Stop-Process -Id $old -Force -ErrorAction SilentlyContinue }
     Remove-Item cmd\serve.pid -ErrorAction SilentlyContinue

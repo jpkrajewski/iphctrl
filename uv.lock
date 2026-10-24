@@ -833,6 +833,7 @@ name = "iphctrl"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "pillow" },
     { name = "pymobiledevice3" },
     { name = "python-dotenv" },
 ]
@@ -845,6 +846,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "pillow", specifier = ">=12.3.0" },
     { name = "pymobiledevice3", specifier = ">=11.30.0" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
 ]

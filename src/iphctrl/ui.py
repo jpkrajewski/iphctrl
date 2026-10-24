@@ -27,6 +27,9 @@ TAPPABLE = {
     "Key",
     "Tab",
 }
+# XCTest waits for the app to go idle before every action. Instagram/TikTok animate
+# forever (autoplay, shimmer), so that wait never ends and WDA hangs.
+NO_IDLE_WAIT = {"waitForIdleTimeout": 0, "animationCoolOffTimeout": 0}
 
 
 class Ui:
@@ -43,7 +46,18 @@ class Ui:
     ) -> "Ui":
         runner = await wait_for_xctest_app(rsd, runner_bundle)
         client = WdaServiceClient(service_provider=lockdown, timeout=30.0)
-        await client.start_session()
+        caps = {"shouldWaitForQuiescence": False, **NO_IDLE_WAIT}
+        data = await client._request_json(
+            "POST",
+            "/session",
+            {"capabilities": {"alwaysMatch": caps}, "desiredCapabilities": caps},
+        )
+        client.session_id = data.get("sessionId") or data["value"]["sessionId"]
+        await client._request_json(
+            "POST",
+            f"/session/{client.session_id}/appium/settings",
+            {"settings": NO_IDLE_WAIT},
+        )
         size = await client._request_json(
             "GET", f"/session/{client.session_id}/window/size"
         )
