@@ -109,4 +109,5 @@ async with Phone() as phone:
 
 ## More docs
 - [docs/LESSONS.md](docs/LESSONS.md): everything that broke on the first phone and how it was fixed.
+- [docs/macos-setup.md](docs/macos-setup.md): running iphctrl from a MacBook — usbmuxd is built in, no AltServer needed for launch/screenshot, and the Accessories privacy setting that hides the phone.
 - [docs/scaling/](docs/scaling/README.md): 10 phones by cable, 50 on Windows, Mac setup, per-phone checklist.

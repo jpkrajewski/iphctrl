@@ -39,6 +39,16 @@ If you can choose, run the phones from Macs. Same `iphctrl` code, fewer moving p
 - At fleet size prefer `tunneld` (one sudo daemon) over one userspace tunnel per process: less CPU, and the phones' tunnels survive `serve` restarts. That needs a `--tunnel` option in `Phone` (not implemented yet).
 - The rest (supervisor, per-phone `serve`, inventory, health checks) is identical to Windows (10-phones.md §6).
 
+## Verified on a MacBook (one personal phone)
+Full notes: [../macos-setup.md](../macos-setup.md).
+- **Phone charges but never appears in `pymobiledevice3 usbmux list`** (Finder and
+  `system_profiler` empty too): System Settings → Privacy & Security → **Accessories**
+  must allow the device (Automatic, or approve it there). Verified — this cost the most time.
+- `iphctrl info`'s auto-mount path hung indefinitely; `uv run pymobiledevice3 mounter auto-mount`
+  directly worked and shows success/failure. Verified.
+- Basic launch/screenshot needs no signing tooling at all (usbmuxd + Developer Disk Image only).
+  WDA still needs the Xcode route above. Verified for launch/screenshot.
+
 ## Recommended path
 1. Prove 10 phones on the **current Windows PC** (10-phones.md); it's mostly hardware and hygiene.
 2. Move phone 11+ to a **Mac mini** with a paid developer account.
